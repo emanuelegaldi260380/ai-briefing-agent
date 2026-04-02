@@ -1,0 +1,59 @@
+# =============================================================================
+# 🤖 AI Briefing Agent — GitHub Actions Workflow
+# =============================================================================
+# Esegue l'agente ogni mattina alle 8:00 CET (7:00 UTC)
+# e invia il briefing via email.
+#
+# SETUP:
+# 1. Crea un repo GitHub (anche privato)
+# 2. Vai su Settings → Secrets and variables → Actions
+# 3. Aggiungi questi secrets:
+#    - ANTHROPIC_API_KEY  → La tua API key di Anthropic
+#    - SMTP_USER          → La tua email Gmail
+#    - SMTP_PASSWORD      → App Password Gmail (NON la password normale)
+#    - EMAIL_TO           → L'email dove ricevere il briefing
+# =============================================================================
+
+name: "🤖 AI Briefing Quotidiano"
+
+on:
+  # Esecuzione schedulata: ogni giorno alle 7:00 UTC = 8:00 CET (inverno) / 9:00 CEST (estate)
+  schedule:
+    - cron: "0 7 * * *"    # Alle 7:00 UTC di ogni giorno
+
+  # Permetti anche esecuzione manuale per test
+  workflow_dispatch:
+
+jobs:
+  send-briefing:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: "📥 Checkout repository"
+        uses: actions/checkout@v4
+
+      - name: "🐍 Setup Python"
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: "📦 Installa dipendenze"
+        run: pip install feedparser anthropic requests
+
+      - name: "🤖 Esegui AI Briefing Agent"
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          EMAIL_TO: ${{ secrets.EMAIL_TO }}
+          EMAIL_FROM: ${{ secrets.SMTP_USER }}
+        run: python ai_briefing_agent.py
+
+      - name: "💾 Archivia briefing"
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: "briefing-${{ github.run_number }}"
+          path: archive/
+          retention-days: 30
